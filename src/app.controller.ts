@@ -3,15 +3,8 @@ import { AppService } from "./app.service";
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @Get("elmundo")
-  getNewsElMundo() {
-    return this.appService.getNewsElMundo();
-  }
-
-  @Get("elpais")
-  getNewsElPais() {
-    return this.appService.getNewsElPais();
+  @Get()
+  get() {
+    return "Hello";
   }
 }
