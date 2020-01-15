@@ -1,4 +1,4 @@
-import { Injectable, HttpException, Inject } from "@nestjs/common";
+import { Injectable, HttpException, Inject, HttpStatus } from "@nestjs/common";
 import { Article } from "../interface/articles.interface";
 import { Model } from "mongoose";
 const cheerio = require("cheerio");
@@ -21,42 +21,33 @@ export class ArticlesService {
     private readonly articlesModel: Model<Article> | any
   ) {}
 
-  todayNews() {
+  async todayNews() {
     try {
-      this.getCoverElMundo();
-      this.getCoverElPais();
+      await this.getCoverElMundo();
+      await this.getCoverElPais();
+
+      return HttpStatus.OK;
     } catch (error) {
-      console.log(error);
+      throw error;
     }
   }
   async getCoverElMundo() {
-    let articleToCreate: Article;
-
     const urls = await this.getCoverNewsURLs("https://www.elmundo.es/");
 
     const articles = await this.getArticlesHtml(urls);
 
-    articles.forEach(async (articleHTML, index) => {
+    return articles.map(async (articleHTML, index) => {
       let articleToCreate: Article = this.getSingleArticleElMundo(
         articleHTML,
         urls[index]
       );
 
-      this.save(articleToCreate);
+      return this.save(articleToCreate);
     });
   }
 
   getSingleArticleElMundo(article, url): Article {
-    let single_article: Article = {
-      title: "",
-      body: "",
-      source: {
-        url: "",
-        name: ""
-      },
-      image: "",
-      publisher: ""
-    };
+    let single_article: Article = Object.assign({}, newArticle);
     const $ = cheerio.load(article.data);
 
     single_article.source.url = url;
@@ -81,19 +72,17 @@ export class ArticlesService {
   }
 
   async getCoverElPais() {
-    let articleToCreate: Article;
-
     const urls = await this.getCoverNewsURLs("https://elpais.com/");
 
     const articles = await this.getArticlesHtml(urls);
 
-    articles.forEach(async (articleHTML, index) => {
-      let articleToCreate: Article = this.getSingleArticleElMundo(
+    return articles.map(async (articleHTML, index) => {
+      let articleToCreate: Article = this.getSingleArticleElPais(
         articleHTML,
         urls[index]
       );
 
-      this.save(articleToCreate);
+      return this.save(articleToCreate);
     });
   }
 
@@ -123,16 +112,7 @@ export class ArticlesService {
   }
 
   getSingleArticleElPais(article, url) {
-    let single_article: Article = {
-      title: "",
-      body: "",
-      source: {
-        url: "",
-        name: ""
-      },
-      image: "",
-      publisher: ""
-    };
+    let single_article: Article = Object.assign({}, newArticle);
     const $ = cheerio.load(article.data);
 
     single_article.source.url = url;
@@ -196,22 +176,24 @@ export class ArticlesService {
   }
 
   async find(article): Promise<Article> {
-    let query = { "source.url": article.source.url };
-    return this.articlesModel
-      .findOne({
-        "source.url": article.source.url
-      })
-      .exec();
+    let query = { ["source.url"]: article.source.url };
+    let res = await this.articlesModel.findOne(query).exec();
+    return res;
   }
 
   async save(article) {
-    let exists = await this.find(article);
     const newArticle = new this.articlesModel(article as Article);
+    let exists = await this.find(newArticle);
+
     if (!exists) {
       return newArticle.save();
     }
   }
   delete(article) {}
+
+  async findById(id): Promise<Article> {
+    return await this.articlesModel.findOne({ _id: id }).exec();
+  }
 
   async getFeed() {
     return await this.articlesModel.find().exec();
