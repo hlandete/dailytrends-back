@@ -1,6 +1,7 @@
 import { Injectable, HttpException, Inject, HttpStatus } from "@nestjs/common";
 import { Article } from "../interface/articles.interface";
 import { Model } from "mongoose";
+import { HttpMessages } from "../../generic/enums/HttpMessages.enum";
 const cheerio = require("cheerio");
 const axios = require("axios");
 
@@ -34,10 +35,10 @@ export class ArticlesService {
   async getCoverElMundo() {
     const urls = await this.getCoverNewsURLs("https://www.elmundo.es/");
 
-    const articles = await this.getArticlesHtml(urls);
+    const articles = await this.getMultipleArticlesHtml(urls);
 
     return articles.map(async (articleHTML, index) => {
-      let articleToCreate: Article = this.getSingleArticleElMundo(
+      let articleToCreate: Article = this.scrapArticleElmundo(
         articleHTML,
         urls[index]
       );
@@ -46,7 +47,7 @@ export class ArticlesService {
     });
   }
 
-  getSingleArticleElMundo(article, url): Article {
+  scrapArticleElmundo(article, url): Article {
     let single_article: Article = Object.assign({}, newArticle);
     const $ = cheerio.load(article.data);
 
@@ -74,10 +75,10 @@ export class ArticlesService {
   async getCoverElPais() {
     const urls = await this.getCoverNewsURLs("https://elpais.com/");
 
-    const articles = await this.getArticlesHtml(urls);
+    const articles = await this.getMultipleArticlesHtml(urls);
 
     return articles.map(async (articleHTML, index) => {
-      let articleToCreate: Article = this.getSingleArticleElPais(
+      let articleToCreate: Article = this.scrapArticleElPais(
         articleHTML,
         urls[index]
       );
@@ -111,7 +112,7 @@ export class ArticlesService {
     return urls;
   }
 
-  getSingleArticleElPais(article, url) {
+  scrapArticleElPais(article, url) {
     let single_article: Article = Object.assign({}, newArticle);
     const $ = cheerio.load(article.data);
 
@@ -137,7 +138,7 @@ export class ArticlesService {
     return single_article;
   }
 
-  getArticlesHtml(urls) {
+  getMultipleArticlesHtml(urls) {
     const articles_promises = [];
     urls.forEach(async url => {
       articles_promises.push(axios.get(url));
@@ -146,20 +147,27 @@ export class ArticlesService {
     return Promise.all(articles_promises);
   }
 
-  async getUserArticle(url: string) {
-    let response = [];
-    const articles = await this.getArticlesHtml([url]);
+  async postArticle(url: string) {
+    if (this.validURL(url)) {
+      const articleHTML = await axios.get(url);
 
-    articles.forEach((article, index) => {
+      let articleToCreate: Article = Object.assign({}, newArticle);
+
       if (url.includes("elmundo")) {
-        response.push(this.getSingleArticleElMundo(article, url));
+        articleToCreate = this.scrapArticleElmundo(articleHTML, url);
       } else if (url.includes("elpais")) {
-        response.push(this.getSingleArticleElPais(article, url));
+        articleToCreate = this.scrapArticleElPais(articleHTML, url);
       } else {
-        throw HttpException;
+        this.httpException(
+          HttpMessages.NOT_VALID_NEWSPAPPER,
+          HttpStatus.BAD_REQUEST
+        );
       }
-    });
-    return response;
+
+      return this.save(articleToCreate);
+    } else {
+      this.httpException(HttpMessages.URL_NOT_VALID, HttpStatus.BAD_REQUEST);
+    }
   }
 
   validURL(str) {
@@ -187,6 +195,11 @@ export class ArticlesService {
 
     if (!exists) {
       return newArticle.save();
+    } else {
+      this.httpException(
+        HttpMessages.DUPLICATED_ARTICLE,
+        HttpStatus.BAD_REQUEST
+      );
     }
   }
   delete(article) {}
@@ -197,5 +210,9 @@ export class ArticlesService {
 
   async getFeed() {
     return await this.articlesModel.find().exec();
+  }
+
+  private httpException(message, status) {
+    throw new HttpException(message, status);
   }
 }

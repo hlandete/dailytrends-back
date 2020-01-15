@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Res, HttpStatus } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Res,
+  HttpStatus,
+  Body,
+  Patch
+} from "@nestjs/common";
 import { ArticlesService } from "./service/articles.service";
 import { Id } from "../generic/decorators/params.decorators";
 import { HttpMessages } from "../generic/enums/HttpMessages.enum";
@@ -41,7 +49,7 @@ export class ArticlesController {
       });
   }
 
-  @Get("single/:id")
+  @Get(":id")
   getSingleArticle(@Res() res, @Id() id) {
     return this.articlesService
       .findById(id)
@@ -57,6 +65,22 @@ export class ArticlesController {
       });
   }
 
-  @Post("article")
-  postArticle(url) {}
+  @Post()
+  postArticle(@Res() res, @Body() body) {
+    return this.articlesService
+      .postArticle(body.url)
+      .then(data => {
+        res.status(HttpStatus.OK).json(data);
+      })
+      .catch(error => {
+        if (error.status) {
+          res.status(error.status).json(error);
+        } else {
+          res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(error);
+        }
+      });
+  }
+
+  @Patch()
+  updateArticle(@Res() res, @Body() body) {}
 }
