@@ -21,6 +21,8 @@ La base de datos empleada es mongo -> URI = "mongodb://localhost:27017/dailytren
 
 ## Explanation
 
+El framework empleado es NestJs. Framework que corre en Nodejs
+
 Para la realización del back se han empleado 3 modulos.
 
 - app.modue -> Carga la aplicación
