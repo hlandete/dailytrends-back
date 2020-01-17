@@ -1,4 +1,5 @@
-import { Injectable, HttpException } from "@nestjs/common";
+import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
+import { HttpMessages } from "../enums/HttpMessages.enum";
 
 @Injectable()
 export class GenericService {
@@ -17,5 +18,18 @@ export class GenericService {
 
   public httpException(message, status) {
     throw new HttpException(message, status);
+  }
+
+  public checkOrigin(url) {
+    if (url.includes("elmundo")) {
+      return "elmundo";
+    } else if (url.includes("elpais")) {
+      return "elpais";
+    } else {
+      this.httpException(
+        HttpMessages.NOT_VALID_NEWSPAPPER,
+        HttpStatus.BAD_REQUEST
+      );
+    }
   }
 }
