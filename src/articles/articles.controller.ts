@@ -5,7 +5,8 @@ import {
   Res,
   HttpStatus,
   Body,
-  Patch
+  Patch,
+  Delete
 } from "@nestjs/common";
 import { ArticlesService } from "./service/articles.service";
 import { Id } from "../generic/decorators/params.decorators";
@@ -15,7 +16,7 @@ import { HttpMessages } from "../generic/enums/HttpMessages.enum";
 export class ArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}
 
-  @Get("feed")
+  @Get()
   getUserFeed(@Res() res) {
     this.articlesService
       .getFeed()
@@ -81,6 +82,35 @@ export class ArticlesController {
       });
   }
 
-  @Patch()
-  updateArticle(@Res() res, @Body() body) {}
+  @Patch(":id")
+  updateArticle(@Res() res, @Id() id, @Body() body) {
+    return this.articlesService
+      .update(id, body)
+      .then(data => {
+        res.status(HttpStatus.OK).json(data);
+      })
+      .catch(error => {
+        if (error.status) {
+          res.status(error.status).json(error);
+        } else {
+          res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(error);
+        }
+      });
+  }
+
+  @Delete(":id")
+  deleteArticle(@Res() res, @Id() id) {
+    return this.articlesService
+      .delete(id)
+      .then(data => {
+        res.status(HttpStatus.OK).json(data);
+      })
+      .catch(error => {
+        if (error.status) {
+          res.status(error.status).json(error);
+        } else {
+          res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(error);
+        }
+      });
+  }
 }

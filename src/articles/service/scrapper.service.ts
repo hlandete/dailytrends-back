@@ -54,11 +54,11 @@ export class ScrapperService {
       .text() as string;
 
     scrappedArticle.publisher = $("article")
-      .find(".ue-c-article__byline-name a")
+      .find(".ue-c-article__byline-name")
       .text() as string;
 
     scrappedArticle.image = $("article")
-      .find("figure img")
+      .find(".kWidgetCentered")
       .attr("src") as string;
 
     scrappedArticle.body = $("article")

@@ -5,5 +5,6 @@ export enum HttpMessages {
 
   ARTICLE_ADDED = "Artículo añadido con exito",
   ARTICLE_DELETED = "Artículo eliminado con exito",
-  ARTICLE_UPDATED = "Artículo actualizado con exito"
+  ARTICLE_UPDATED = "Artículo actualizado con exito",
+  ARTICLE_NOT_FOUND = "El artículo no existe"
 }

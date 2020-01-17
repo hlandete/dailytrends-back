@@ -44,12 +44,27 @@ export class ArticlesService {
     return await this.articlesModel.findOne(query).exec();
   }
 
-  private async update(article: Article) {}
+  public async update(id, newData) {
+    let article = await this.articlesModel.findOne({ _id: id });
+    newData = newData.body;
+    if (article) {
+      Object.keys(newData).forEach(function(key) {
+        article[key] = newData[key];
+      });
 
-  private async delete(article: Article): Promise<any> {
-    const newArticle = new this.articlesModel(article);
+      return await article.save();
+    } else {
+      this.genericService.httpException(
+        HttpMessages.ARTICLE_NOT_FOUND,
+        HttpStatus.NOT_FOUND
+      );
+    }
+  }
+
+  public async delete(id: String): Promise<any> {
+    let article = await this.articlesModel.findOne({ _id: id });
     try {
-      return newArticle.delete();
+      return article.delete();
     } catch (error) {
       this.genericService.httpException(error, HttpStatus.BAD_REQUEST);
     }
