@@ -6,7 +6,7 @@ import { ScrapperService } from "./scrapper.service";
 import { GenericService } from "../../generic/services/generic.service";
 
 const axios = require("axios");
-
+const articlesNumber = 5;
 @Injectable()
 export class ArticlesService {
   constructor(
@@ -18,9 +18,8 @@ export class ArticlesService {
 
   async todayNews() {
     try {
-      await this.getCoverElMundo();
-      await this.getCoverElPais();
-
+      await this.getCoverArticles("https://www.elmundo.es/", articlesNumber);
+      await this.getCoverArticles("https://elpais.com/", articlesNumber);
       return HttpStatus.OK;
     } catch (error) {
       throw error;
@@ -34,13 +33,13 @@ export class ArticlesService {
     } else {
       this.genericService.httpException(
         HttpMessages.DUPLICATED_ARTICLE,
-        HttpStatus.BAD_REQUEST
+        HttpStatus.OK
       );
     }
   }
 
   private async find(article: Article): Promise<Article> {
-    let query = { ["source.url"]: article.source.url };
+    let query = { ["source"]: article.source };
     return await this.articlesModel.findOne(query).exec();
   }
 
@@ -76,26 +75,9 @@ export class ArticlesService {
 
   async postArticle(url: string): Promise<Article> {
     if (this.genericService.validURL(url)) {
-      const articleHTML = await axios.get(url);
-
-      let articleToCreate: Article;
-
-      if (url.includes("elmundo")) {
-        articleToCreate = this.scrapperService.scrapArticleElmundo(
-          articleHTML,
-          url
-        );
-      } else if (url.includes("elpais")) {
-        articleToCreate = this.scrapperService.scrapArticleElPais(
-          articleHTML,
-          url
-        );
-      } else {
-        this.genericService.httpException(
-          HttpMessages.NOT_VALID_NEWSPAPPER,
-          HttpStatus.BAD_REQUEST
-        );
-      }
+      let articleToCreate: Article = await this.scrapperService.srapArticle(
+        url
+      );
 
       return this.create(articleToCreate);
     } else {
@@ -110,40 +92,16 @@ export class ArticlesService {
     return await this.articlesModel.find().exec();
   }
 
-  async getCoverElMundo() {
-    const urls = await this.scrapperService.scrappCoverArticleUrls(
-      "https://www.elmundo.es/",
-      5
-    );
+  async getCoverArticles(url, amount) {
+    const urls = await this.scrapperService.scrappCoverArticleUrls(url, amount);
 
-    const articles = await this.getMultipleArticlesHtml(urls);
-
-    return articles.map(async (articleHTML, index) => {
-      let articleToCreate: Article = this.scrapperService.scrapArticleElmundo(
-        articleHTML,
-        urls[index]
-      );
-
-      return this.create(articleToCreate);
+    let urls_promises = urls.map(url => {
+      return this.scrapperService.srapArticle(url).then(article => {
+        return this.create(article);
+      });
     });
-  }
 
-  async getCoverElPais() {
-    const urls = await this.scrapperService.scrappCoverArticleUrls(
-      "https://elpais.com/",
-      5
-    );
-
-    const articles = await this.getMultipleArticlesHtml(urls);
-
-    return articles.map(async (articleHTML, index) => {
-      let articleToCreate: Article = this.scrapperService.scrapArticleElPais(
-        articleHTML,
-        urls[index]
-      );
-
-      return this.create(articleToCreate);
-    });
+    return Promise.all(urls_promises);
   }
 
   getMultipleArticlesHtml(urls) {

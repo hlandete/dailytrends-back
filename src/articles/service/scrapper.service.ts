@@ -1,29 +1,44 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, HttpStatus } from "@nestjs/common";
 import { Article } from "../interface/articles.interface";
 import { GenericService } from "../../generic/services/generic.service";
 
+const webscraper = require("web-scraper-js");
 const cheerio = require("cheerio");
 const axios = require("axios");
 
-let newArticle = {
+const scrapTags = {
+  elmundo: {
+    title: "h1",
+    author: ".ue-c-article__byline-name",
+    body: ".ue-l-article__body",
+    image: [".ue-c-article__media--image", "src"]
+  },
+  elpais: {
+    title: "h1",
+    author: "autor-nombre a",
+    body: ".articulo__contenedor",
+    image: ["article > img", "src"]
+  }
+};
+
+const newArticle = {
   title: "",
   body: "",
-  source: {
-    url: "",
-    name: ""
-  },
+  source: "",
   image: "",
-  publisher: ""
+  publisher: "",
+  author: ""
 };
+
 @Injectable()
 export class ScrapperService {
   constructor(private readonly genericService: GenericService) {}
+
   async scrappCoverArticleUrls(website: string, amount: number) {
     const urls: string[] = [];
     const res = await axios.get(website);
 
     const cover_html = res.data;
-    // console.log(html);
 
     const $ = cheerio.load(cover_html);
 
@@ -43,54 +58,56 @@ export class ScrapperService {
     return urls;
   }
 
-  scrapArticleElmundo(article, url): Article {
-    let scrappedArticle: Article = Object.assign({}, newArticle);
-    const $ = cheerio.load(article.data);
+  async srapArticle(url): Promise<Article> {
+    let publisher = this.genericService.checkPublisher(url);
+    let result = await webscraper.scrape({
+      url: url,
+      tags: {
+        text: {
+          title: scrapTags[publisher].title,
+          author: scrapTags[publisher].author,
+          body: scrapTags[publisher].body
+        },
+        attribute: {
+          image: scrapTags[publisher].image
+        }
+      }
+    });
 
-    scrappedArticle.source.url = url;
-    scrappedArticle.source.name = "elmundo";
-    scrappedArticle.title = $("article")
-      .find("h1")
-      .text() as string;
+    result.source = url;
+    result.publisher = publisher;
 
-    scrappedArticle.publisher = $("article")
-      .find(".ue-c-article__byline-name")
-      .text() as string;
-
-    scrappedArticle.image = $("article")
-      .find(".kWidgetCentered")
-      .attr("src") as string;
-
-    scrappedArticle.body = $("article")
-      .find(".ue-c-article__standfirst")
-      .text();
-
-    return scrappedArticle;
+    return this.parseToArticle(result);
   }
 
-  scrapArticleElPais(article, url) {
-    let scrappedArticle: Article = Object.assign({}, newArticle);
-    const $ = cheerio.load(article.data);
+  parseToArticle(scrappedArticle): Article {
+    let article: Article = Object.assign({}, newArticle);
 
-    scrappedArticle.source.url = url;
-    scrappedArticle.source.name = "elpais";
-    scrappedArticle.title = $("article")
-      .find("h1")
-      .text() as string;
+    article.title = scrappedArticle.title.find(
+      element => typeof element !== "undefined"
+    );
+    article.body = scrappedArticle.body.find(
+      element => typeof element !== "undefined"
+    );
+    article.image = scrappedArticle.image.find(
+      element => typeof element !== "undefined"
+    );
+    article.author = scrappedArticle.author.find(
+      element => typeof element !== "undefined"
+    );
+    article.publisher = scrappedArticle.publisher;
+    article.source = scrappedArticle.source;
 
-    scrappedArticle.publisher = $("article")
-      .find(".autor-nombre a")
-      .text() as string;
+    return article; //this.removeUndefined(article);
+  }
 
-    scrappedArticle.image = $("figure")
-      .find("img")
-      .first()
-      .attr("src") as string;
+  removeUndefined(article) {
+    Object.keys(article).forEach(function(key) {
+      if (typeof article[key] === "undefined") {
+        article[key] = "unknown";
+      }
+    });
 
-    scrappedArticle.body = $("article")
-      .find(".articulo-cuerpo")
-      .text() as string;
-
-    return scrappedArticle;
+    return article;
   }
 }
