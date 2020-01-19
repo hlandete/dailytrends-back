@@ -59,7 +59,7 @@ export class ScrapperService {
   }
 
   async srapArticle(url): Promise<Article> {
-    let publisher = this.genericService.checkOrigin(url);
+    let publisher = this.genericService.checkPublisher(url);
     let result = await webscraper.scrape({
       url: url,
       tags: {
